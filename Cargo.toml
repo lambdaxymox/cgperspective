@@ -3,7 +3,20 @@ name = "cgperspective"
 version = "0.1.0"
 authors = ["LambdaXymox <lambda.xymox@gmail.com>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "A moveable camera model for computer graphics tech demos."
+categories = ["graphics"]
+keywords = ["graphics"]
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+repository = "https://github.com/lambdaxymox/cgperspective"
 
 [dependencies]
+cglinalg = { git = "https://github.com/lambdaxymox/cglinalg/" }
+
+[lib]
+name = "cgperspective"
+path = "src/lib.rs"
+
+[features]
+default = []
+
