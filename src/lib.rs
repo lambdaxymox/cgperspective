@@ -312,35 +312,12 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
 
     }
 
-    /// Get the camera's eye position in world space.
-    #[inline]
-    fn position(&self) -> Vector3<S> { 
-        self.position
-    }
-    
-    /// Get the camera's up direction in world space.
-    #[inline]
-    fn up_axis(&self) -> Vector3<S> {
-        Vector3::new(self.up.x, self.up.y, self.up.z)
-    }
-    
-    /// Get the camera's right axis in world space.
-    #[inline]
-    fn right_axis(&self) -> Vector3<S> {
-        Vector3::new(self.right.x, self.right.y, self.right.z)
-    }
-    
-    /// Get the camera's forward axis in world space.
-    #[inline]
-    fn forward_axis(&self) -> Vector3<S> {
-        Vector3::new(self.forward.x, self.forward.y, self.forward.z)
-    }
-    
     /// Get the camera's up direction in camera space.
     #[inline]
     fn up_axis_eye(&self) -> Vector3<S> {
         let zero = S::zero();
         let one = S::one();
+
         Vector3::new(zero, one, zero)
     }
         
@@ -349,6 +326,7 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
     fn right_axis_eye(&self) -> Vector3<S> {
         let zero = S::zero();
         let one = S::one();
+        
         Vector3::new(one, zero ,zero)
     }
         
@@ -357,13 +335,8 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
     fn forward_axis_eye(&self) -> Vector3<S> {
         let zero = S::zero();
         let one = S::one();
+        
         Vector3::new(zero, zero, -one)
-    }
-    
-    /// Get the camera's axis of rotation.
-    #[inline]
-    fn axis(&self) -> Quaternion<S> {
-        self.axis
     }
 
     #[inline]
@@ -404,7 +377,7 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
         );
         self.axis = q_roll * self.axis;
 
-        let rotation_matrix_inv = Matrix4::from(self.axis);
+        let rotation_matrix_inv = Matrix4::from(&self.axis);
         self.forward = rotation_matrix_inv * self.forward_axis_eye().expand(S::zero());
         self.right   = rotation_matrix_inv * self.right_axis_eye().expand(S::zero());
         self.up      = rotation_matrix_inv * self.up_axis_eye().expand(S::zero());
@@ -501,6 +474,7 @@ impl<S> CameraKinematics<S> for FreeKinematics<S> where S: ScalarFloat {
     }
 }
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub struct Camera<S, M, K> {
     model: M,
@@ -535,6 +509,54 @@ impl<S, M, K> Camera<S, M, K>
 
     pub fn update_attitude(&mut self, delta_attitude: &DeltaAttitude<S>) {
         self.attitude.update(delta_attitude);
+    }
+
+    /// Get the camera's eye position in world space.
+    #[inline]
+    pub fn position(&self) -> Vector3<S> { 
+        self.attitude.position
+    }
+    
+    /// Get the camera's up direction in world space.
+    #[inline]
+    pub fn up_axis(&self) -> Vector3<S> {
+        self.attitude.up.contract()
+    }
+    
+    /// Get the camera's right axis in world space.
+    #[inline]
+    pub fn right_axis(&self) -> Vector3<S> {
+        self.attitude.right.contract()
+    }
+    
+    /// Get the camera's forward axis in world space.
+    #[inline]
+    pub fn forward_axis(&self) -> Vector3<S> {
+        self.attitude.forward.contract()
+    }
+    
+    /// Get the camera's up direction in camera space.
+    #[inline]
+    pub fn up_axis_eye(&self) -> Vector3<S> {
+        self.attitude.up_axis_eye()
+    }
+        
+    /// Get the camera's right axis in camera space.
+    #[inline]
+    pub fn right_axis_eye(&self) -> Vector3<S> {
+        self.attitude.right_axis_eye()
+    }
+        
+    /// Get the camera's forward axis in camera space.
+    #[inline]
+    pub fn forward_axis_eye(&self) -> Vector3<S> {
+        self.attitude.forward_axis_eye()
+    }
+    
+    /// Get the camera's axis of rotation.
+    #[inline]
+    pub fn axis(&self) -> Vector3<S> {
+        self.attitude.axis.v
     }
 }
 
