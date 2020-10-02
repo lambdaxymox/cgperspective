@@ -141,314 +141,400 @@ impl ops::Sub<SimpleCameraMovement> for CameraMovement {
 }
 
 impl ops::AddAssign<SimpleCameraMovement> for CameraMovement {
+    #[inline]
     fn add_assign(&mut self, other: SimpleCameraMovement) {
         *self = self.add_movement(other)
     }
 }
 
 impl ops::SubAssign<SimpleCameraMovement> for CameraMovement {
+    #[inline]
     fn sub_assign(&mut self, other: SimpleCameraMovement) {
         *self = self.subtract_movement(other)
     }
 }
 
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct CameraSpecification<S> {
-    near: S,
-    far: S,
-    fovy: Degrees<S>,
-    aspect: S,
+pub struct DeltaAttitude<S> {
+    x: S,
+    y: S,
+    z: S,
+    roll: S,
+    yaw: S,
+    pitch: S,
 }
 
-impl<S> CameraSpecification<S> where S: ScalarFloat {
-    pub fn new(near: S, far: S, fovy: Degrees<S>, aspect: S) -> CameraSpecification<S> {
-        CameraSpecification {
-            near: near,
-            far: far,
-            fovy: fovy,
-            aspect: aspect,
+impl<S> DeltaAttitude<S> where S: ScalarFloat {
+    fn zero() -> DeltaAttitude<S> {
+        DeltaAttitude {
+            x: S::zero(),
+            y: S::zero(),
+            z: S::zero(),
+            roll: S::zero(),
+            yaw: S::zero(),
+            pitch: S::zero(),
         }
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct CameraKinematics<S> {
-    speed: S,
-    yaw_speed: S,
-    position: Vector3<S>,
-    forward: Vector4<S>,
-    right: Vector4<S>,
-    up: Vector4<S>,
-    axis: Quaternion<S>,
+pub trait CameraModel {
+    type Spec;
+
+    fn from_spec(spec: &Self::Spec) -> Self;
+
+    fn update(&mut self, width: usize, height: usize);
 }
 
-impl<S> CameraKinematics<S> where S: ScalarFloat {
-    pub fn new(
-        speed: S, 
-        yaw_speed: S, 
-        position: Vector3<S>, 
-        forward: Vector4<S>, 
-        right: Vector4<S>, 
-        up: Vector4<S>, 
-        axis: Quaternion<S>) -> CameraKinematics<S> {
+pub trait CameraKinematics<S> {
+    type Spec;
 
-        CameraKinematics {
-            speed: speed,
-            yaw_speed: yaw_speed,
+    fn from_spec(spec: &Self::Spec) -> Self;
+    
+    fn update(&self, movement: CameraMovement, elapsed: S) -> DeltaAttitude<S>;
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct PerspectiveFov<S> {
+    fovy: Degrees<S>,
+    aspect: S,
+    near: S,
+    far: S,
+    projection_matrix: Matrix4<S>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct PerspectiveFovSpec<S> {
+    fovy: Degrees<S>,
+    aspect: S,
+    near: S,
+    far: S,
+}
+
+impl<S> PerspectiveFovSpec<S> where S: ScalarFloat {
+    pub fn new(fovy: Degrees<S>, aspect: S, near: S, far: S) -> PerspectiveFovSpec<S> {
+        PerspectiveFovSpec {
+            fovy: fovy,
+            aspect: aspect,
+            near: near,
+            far: far,
+        }
+    }
+}
+
+impl<S> CameraModel for PerspectiveFov<S> where S: ScalarFloat {
+    type Spec = PerspectiveFovSpec<S>;
+
+    fn from_spec(spec: &Self::Spec) -> Self {
+        let projection_matrix = Matrix4::from_perspective_fov(
+            spec.fovy, 
+            spec.aspect, 
+            spec.near, 
+            spec.far
+        );
+
+        PerspectiveFov {
+            fovy: spec.fovy,
+            aspect: spec.aspect,
+            near: spec.near,
+            far: spec.far,
+            projection_matrix: projection_matrix,
+        }
+    }
+
+    fn update(&mut self, width: usize, height: usize) {
+        let width_float = cglinalg::num_traits::cast::<usize, S>(width).unwrap();
+        let height_float = cglinalg::num_traits::cast::<usize, S>(height).unwrap();
+        self.aspect = width_float / height_float;
+        self.projection_matrix = Matrix4::from_perspective_fov(
+            self.fovy, 
+            self.aspect, 
+            self.near, 
+            self.far
+        );
+    }
+}
+
+pub struct CameraAttitudeSpec<S> {
+    position: Vector3<S>,
+    forward: Vector3<S>,
+    right: Vector3<S>,
+    up: Vector3<S>,
+    axis: Vector3<S>,
+}
+
+impl<S> CameraAttitudeSpec<S> where S: ScalarFloat {
+    #[inline]
+    pub fn new(
+        position: Vector3<S>,
+        forward: Vector3<S>,
+        right: Vector3<S>,
+        up: Vector3<S>,
+        axis: Vector3<S>) -> Self {
+
+        CameraAttitudeSpec {
             position: position,
             forward: forward,
             right: right,
             up: up,
             axis: axis,
         }
-
     }
 }
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct CameraAttitude<S> {
-    pub roll: S,
-    pub pitch: S,
-    pub yaw: S,
-}
-
-impl<S> CameraAttitude<S> where S: ScalarFloat {
-    #[inline]
-    pub fn new(roll: S, pitch: S, yaw: S) -> CameraAttitude<S> {
-        CameraAttitude {
-            roll: roll,
-            pitch: pitch,
-            yaw: yaw,
-        }
-    }
-}
-
 
 #[derive(Clone, Debug)]
-pub struct Camera<S> {
-    // Camera specification parameters.
-    pub near: S,
-    pub far: S,
-    pub fovy: Degrees<S>,
-    pub aspect: S,
-
-    // Camera kinematics.
-    pub movement_speed: S,
-    pub rotation_speed: S,
+struct CameraAttitude<S> {
     position: Vector3<S>,
     forward: Vector4<S>,
     right: Vector4<S>,
     up: Vector4<S>,
     axis: Quaternion<S>,
-
-    // Camera matrices.
-    pub proj_mat: Matrix4<S>,
-    pub trans_mat: Matrix4<S>,
-    pub rot_mat: Matrix4<S>,
-    pub view_mat: Matrix4<S>,
+    translation_matrix: Matrix4<S>,
+    rotation_matrix: Matrix4<S>,
+    view_matrix: Matrix4<S>,
 }
 
-impl<S> fmt::Display for Camera<S> where S: ScalarFloat + fmt::Display {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut output = String::from("Camera model:\n");
-        output.push_str(&format!("near: {}\n", self.near));
-        output.push_str(&format!("far: {}\n", self.far));
-        output.push_str(&format!("aspect: {}\n", self.aspect));
-        output.push_str(&format!("speed: {}\n", self.movement_speed));
-        output.push_str(&format!("yaw_speed: {}\n", self.rotation_speed));
-        output.push_str(&format!("position: {}\n", self.position));
-        output.push_str(&format!("forward: {}\n", self.forward));
-        output.push_str(&format!("right: {}\n", self.right));
-        output.push_str(&format!("up: {}\n", self.up));
-        output.push_str(&format!("axis: {}\n", self.axis));
-        output.push_str(&format!("proj_mat: {}\n", self.proj_mat));
-        output.push_str(&format!("trans_mat: {}\n", self.trans_mat));
-        output.push_str(&format!("rot_mat: {}\n", self.rot_mat));
-        output.push_str(&format!("view_mat: {}\n", self.view_mat));
-        writeln!(f, "{}", output)
-    }
-}
+impl<S> CameraAttitude<S> where S: ScalarFloat {
+    fn from_spec(spec: &CameraAttitudeSpec<S>) -> CameraAttitude<S> {
+        let axis = Quaternion::from_parts(S::zero(), spec.axis);
+        let translation_matrix = Matrix4::from_affine_translation(&(-spec.position));
+        let rotation_matrix = Matrix4::from(&axis);
+        let view_matrix = rotation_matrix * translation_matrix;
 
-impl<S> Camera<S> where S: ScalarFloat {
-    /// Construct a new camera.
-    pub fn new(spec: CameraSpecification<S>, kinematics: CameraKinematics<S>) -> Camera<S> {
-        let proj_mat = Matrix4::from_perspective_fov(spec.fovy, spec.aspect, spec.near, spec.far);
-        let trans_mat = Matrix4::from_affine_translation(&(-kinematics.position));
-        let rot_mat = Matrix4::from(kinematics.axis);
-        let view_mat = rot_mat * trans_mat;
-
-        Camera {
-            near: spec.near,
-            far: spec.far,
-            fovy: spec.fovy,
-            aspect: spec.aspect,
-
-            movement_speed: kinematics.speed,
-            rotation_speed: kinematics.yaw_speed,
-            position: kinematics.position,
-            forward: kinematics.forward,
-            right: kinematics.right,
-            up: kinematics.up,
-            axis: kinematics.axis,
-
-            proj_mat: proj_mat,
-            trans_mat: trans_mat,
-            rot_mat: rot_mat,
-            view_mat: view_mat,
+        CameraAttitude {
+            position: spec.position,
+            forward: spec.forward.expand(S::zero()),
+            right: spec.right.expand(S::zero()),
+            up: spec.up.expand(S::zero()),
+            axis: axis,
+            translation_matrix: translation_matrix,
+            rotation_matrix: rotation_matrix,
+            view_matrix: view_matrix,
         }
+
     }
 
     /// Get the camera's eye position in world space.
     #[inline]
-    pub fn position(&self) -> Vector3<S> { 
+    fn position(&self) -> Vector3<S> { 
         self.position
     }
-
+    
     /// Get the camera's up direction in world space.
     #[inline]
-    pub fn up_axis(&self) -> Vector3<S> {
+    fn up_axis(&self) -> Vector3<S> {
         Vector3::new(self.up.x, self.up.y, self.up.z)
     }
-
+    
     /// Get the camera's right axis in world space.
     #[inline]
-    pub fn right_axis(&self) -> Vector3<S> {
+    fn right_axis(&self) -> Vector3<S> {
         Vector3::new(self.right.x, self.right.y, self.right.z)
     }
-
+    
     /// Get the camera's forward axis in world space.
     #[inline]
-    pub fn forward_axis(&self) -> Vector3<S> {
+    fn forward_axis(&self) -> Vector3<S> {
         Vector3::new(self.forward.x, self.forward.y, self.forward.z)
     }
-
+    
     /// Get the camera's up direction in camera space.
     #[inline]
-    pub fn up_axis_eye(&self) -> Vector3<S> {
+    fn up_axis_eye(&self) -> Vector3<S> {
         let zero = S::zero();
         let one = S::one();
         Vector3::new(zero, one, zero)
     }
-    
+        
     /// Get the camera's right axis in camera space.
     #[inline]
-    pub fn right_axis_eye(&self) -> Vector3<S> {
+    fn right_axis_eye(&self) -> Vector3<S> {
         let zero = S::zero();
         let one = S::one();
         Vector3::new(one, zero ,zero)
     }
-    
+        
     /// Get the camera's forward axis in camera space.
     #[inline]
-    pub fn forward_axis_eye(&self) -> Vector3<S> {
+    fn forward_axis_eye(&self) -> Vector3<S> {
         let zero = S::zero();
         let one = S::one();
         Vector3::new(zero, zero, -one)
     }
-
-    /// Get the camera's axis or rotation.
+    
+    /// Get the camera's axis of rotation.
     #[inline]
-    pub fn axis(&self) -> Quaternion<S> {
+    fn axis(&self) -> Quaternion<S> {
         self.axis
     }
 
-    /// Update the camera position and attitude based on the input camera movements.
-    /// All movements are updated in the camera's coordinate system.
     #[inline]
-    pub fn update_movement(&mut self, movement: CameraMovement, elapsed_seconds: S) {
-        let mut delta_position = Vector3::zero();
-        if movement.total & MOVE_LEFT != 0 {
-            delta_position.x -= self.movement_speed * elapsed_seconds;
-        }
-        if movement.total & MOVE_RIGHT != 0 {
-            delta_position.x += self.movement_speed * elapsed_seconds;
-        }
-        if movement.total & MOVE_UP != 0 {
-            delta_position.y -= self.movement_speed * elapsed_seconds;
-        }
-        if movement.total & MOVE_DOWN != 0 {
-            delta_position.y += self.movement_speed * elapsed_seconds;
-        }
-        if movement.total & MOVE_FORWARD != 0 {
-            // We subtract along z-axis to move forward because the
-            // forward axis is the (-z) direction in camera space.
-            delta_position.z -= self.movement_speed * elapsed_seconds;
-        }
-        if movement.total & MOVE_BACKWARD != 0 {
-            // We add along the z-axis to move backward because the
-            // forward axis is the (-z) direction in camera space.
-            delta_position.z += self.movement_speed * elapsed_seconds;
-        }
-
-        let mut delta_attitude = CameraAttitude::new(S::zero(), S::zero(), S::zero());
-        if movement.total & PITCH_UP != 0 {
-            delta_attitude.pitch += self.rotation_speed * elapsed_seconds;
-        }
-        if movement.total & PITCH_DOWN != 0 {
-            delta_attitude.pitch -= self.rotation_speed * elapsed_seconds;
-        }
-        if movement.total & YAW_LEFT != 0 {
-            delta_attitude.yaw += self.rotation_speed * elapsed_seconds;
-        }
-        if movement.total & YAW_RIGHT != 0 {
-            delta_attitude.yaw -= self.rotation_speed * elapsed_seconds;
-        }
-        if movement.total & ROLL_CLOCKWISE != 0 {
-            delta_attitude.roll += self.rotation_speed * elapsed_seconds;
-        }
-        if movement.total & ROLL_COUNTERCLOCKWISE != 0 {
-            delta_attitude.roll -= self.rotation_speed * elapsed_seconds;
-        }
-
-        self.update(delta_position, delta_attitude);
+    fn update_movement<K: CameraKinematics<S>>(&mut self, kinematics: &K, movement: CameraMovement, elapsed: S) {
+        let delta_attitude = kinematics.update(movement, elapsed);
+        self.update(&delta_attitude);
     }
 
-    /// Update the camera viewport dimensions in case the viewport dimensions have changed.
+    // Update the camera position.
     #[inline]
-    pub fn update_viewport(&mut self, width: u32, height: u32) {
-        let width_float = cglinalg::num_traits::cast::<u32, S>(width).unwrap();
-        let height_float = cglinalg::num_traits::cast::<u32, S>(height).unwrap();
-        self.aspect = width_float / height_float;
-        self.proj_mat = Matrix4::from_perspective_fov(self.fovy, self.aspect, self.near, self.far);
+    fn update_position(&mut self, delta_attitude: &DeltaAttitude<S>) {
+        self.position += self.forward.contract() * -delta_attitude.z;
+        self.position += self.up.contract()      *  delta_attitude.y;
+        self.position += self.right.contract()   *  delta_attitude.x;
+
+        let trans_mat_inv = Matrix4::from_affine_translation(&self.position);
+        self.translation_matrix = trans_mat_inv.inverse().unwrap();
     }
 
-    /// Update the camera position and attitude in world space.
+    // Update the camera axes so we can rotate the camera about the new rotation axes.
     #[inline]
-    pub fn update(&mut self, delta_position: Vector3<S>, delta_attitude: CameraAttitude<S>) {
-        // Update the axis of rotation of the camera.
+    fn update_orientation(&mut self, delta_attitude: &DeltaAttitude<S>) {
         let axis_yaw = Unit::from_value(self.up.contract());
         let q_yaw = Quaternion::from_axis_angle(
             &axis_yaw, Degrees(delta_attitude.yaw)
         );
         self.axis = q_yaw * self.axis;
+
         let axis_pitch = Unit::from_value(self.right.contract());
         let q_pitch = Quaternion::from_axis_angle(
             &axis_pitch, Degrees(delta_attitude.pitch)
         );
         self.axis = q_pitch * self.axis;
+
         let axis_roll = Unit::from_value(self.forward.contract());
         let q_roll = Quaternion::from_axis_angle(
             &axis_roll, Degrees(delta_attitude.roll), 
         );
         self.axis = q_roll * self.axis;
 
-        // Update the camera axes so we can rotate the camera about the new rotation axes.
-        let zero = S::zero();
-        let rot_mat_inv = Matrix4::from(self.axis);
-        self.forward = rot_mat_inv * self.forward_axis_eye().expand(zero);
-        self.right   = rot_mat_inv * self.right_axis_eye().expand(zero);
-        self.up      = rot_mat_inv * self.up_axis_eye().expand(zero);
+        let rotation_matrix_inv = Matrix4::from(self.axis);
+        self.forward = rotation_matrix_inv * self.forward_axis_eye().expand(S::zero());
+        self.right   = rotation_matrix_inv * self.right_axis_eye().expand(S::zero());
+        self.up      = rotation_matrix_inv * self.up_axis_eye().expand(S::zero());
+        self.rotation_matrix = rotation_matrix_inv.inverse().unwrap();
+    }
 
-        // Update the camera position.
-        self.position += self.forward.contract() * -delta_position.z;
-        self.position += self.up.contract()      *  delta_position.y;
-        self.position += self.right.contract()   *  delta_position.x;
-
-        // Update the camera matrices.
-        let trans_mat_inv = Matrix4::from_affine_translation(&self.position);
-        self.rot_mat = rot_mat_inv.inverse().unwrap();
-        self.trans_mat = trans_mat_inv.inverse().unwrap();
-        self.view_mat = self.rot_mat * self.trans_mat;
+    fn update(&mut self, delta_attitude: &DeltaAttitude<S>) {
+        self.update_orientation(delta_attitude);
+        self.update_position(delta_attitude);
+        self.view_matrix = self.rotation_matrix * self.translation_matrix;
     }
 }
+
+#[derive(Copy, Clone, Debug)]
+pub struct FreeKinematicsSpec<S> {
+    movement_speed: S,
+    rotation_speed: S,
+}
+
+impl<S> FreeKinematicsSpec<S> where S: ScalarFloat {
+    #[inline]
+    pub fn new(movement_speed: S, rotation_speed: S) -> FreeKinematicsSpec<S> {
+        FreeKinematicsSpec {
+            movement_speed: movement_speed,
+            rotation_speed: rotation_speed,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct FreeKinematics<S> {
+    movement_speed: S,
+    rotation_speed: S,
+}
+
+impl<S> CameraKinematics<S> for FreeKinematics<S> where S: ScalarFloat {
+    type Spec = FreeKinematicsSpec<S>;
+
+    #[inline]
+    fn from_spec(spec: &Self::Spec) -> Self {
+        FreeKinematics {
+            movement_speed: spec.movement_speed,
+            rotation_speed: spec.rotation_speed,
+        }
+    }
+
+    #[inline]
+    fn update(&self, movement: CameraMovement, elapsed: S) -> DeltaAttitude<S> {
+        let mut delta_attitude = DeltaAttitude::zero();
+
+        if movement.total & MOVE_LEFT != 0 {
+            delta_attitude.x -= self.movement_speed * elapsed;
+        }
+        if movement.total & MOVE_RIGHT != 0 {
+            delta_attitude.x += self.movement_speed * elapsed;
+        }
+        if movement.total & MOVE_UP != 0 {
+            delta_attitude.y -= self.movement_speed * elapsed;
+        }
+        if movement.total & MOVE_DOWN != 0 {
+            delta_attitude.y += self.movement_speed * elapsed;
+        }
+        if movement.total & MOVE_FORWARD != 0 {
+            // We subtract along z-axis to move forward because the
+            // forward axis is the (-z) direction in camera space.
+            delta_attitude.z -= self.movement_speed * elapsed;
+        }
+        if movement.total & MOVE_BACKWARD != 0 {
+            // We add along the z-axis to move backward because the
+            // forward axis is the (-z) direction in camera space.
+            delta_attitude.z += self.movement_speed * elapsed;
+        }
+
+        if movement.total & PITCH_UP != 0 {
+            delta_attitude.pitch += self.rotation_speed * elapsed;
+        }
+        if movement.total & PITCH_DOWN != 0 {
+            delta_attitude.pitch -= self.rotation_speed * elapsed;
+        }
+        if movement.total & YAW_LEFT != 0 {
+            delta_attitude.yaw += self.rotation_speed * elapsed;
+        }
+        if movement.total & YAW_RIGHT != 0 {
+            delta_attitude.yaw -= self.rotation_speed * elapsed;
+        }
+        if movement.total & ROLL_CLOCKWISE != 0 {
+            delta_attitude.roll += self.rotation_speed * elapsed;
+        }
+        if movement.total & ROLL_COUNTERCLOCKWISE != 0 {
+            delta_attitude.roll -= self.rotation_speed * elapsed;
+        }
+
+        delta_attitude
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Camera<S, M, K> {
+    model: M,
+    attitude: CameraAttitude<S>,
+    kinematics: K,
+}
+
+impl<S, M, K> Camera<S, M, K> 
+    where S: ScalarFloat,
+          M: CameraModel,
+          K: CameraKinematics<S>,
+{
+    pub fn new(
+        model_spec: &M::Spec, 
+        attitude_spec: &CameraAttitudeSpec<S>, 
+        kinematics_spec: &K::Spec) -> Self {
+
+        Camera {
+            model: <M as CameraModel>::from_spec(model_spec),
+            attitude: CameraAttitude::from_spec(attitude_spec),
+            kinematics: <K as CameraKinematics<S>>::from_spec(kinematics_spec)
+        }
+    }
+
+    pub fn update_movement(&mut self, movement: CameraMovement, elapsed_seconds: S) {
+        self.attitude.update_movement(&self.kinematics, movement, elapsed_seconds);
+    }
+
+    pub fn update_model(&mut self, width: usize, height: usize) {
+        self.model.update(width, height);
+    }
+
+    pub fn update_attitude(&mut self, delta_attitude: &DeltaAttitude<S>) {
+        self.attitude.update(delta_attitude);
+    }
+}
+
