@@ -9,8 +9,8 @@ use cglinalg::{
     InvertibleSquareMatrix,
     Unit,
 };
-use std::fmt;
-use std::ops;
+use core::fmt;
+use core::ops;
 
 
 const MOVE_LEFT: u16             = 1 << 0;
