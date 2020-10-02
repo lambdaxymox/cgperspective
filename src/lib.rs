@@ -154,6 +154,8 @@ impl ops::SubAssign<SimpleCameraMovement> for CameraMovement {
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct DeltaAttitude<S> {
     x: S,
     y: S,
@@ -192,7 +194,7 @@ pub trait CameraKinematics<S> {
     fn update(&self, movement: CameraMovement, elapsed: S) -> DeltaAttitude<S>;
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct PerspectiveFov<S> {
     fovy: Degrees<S>,
     aspect: S,
@@ -201,7 +203,8 @@ pub struct PerspectiveFov<S> {
     projection_matrix: Matrix4<S>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(C)]
+#[derive(Clone, Debug)]
 pub struct PerspectiveFovSpec<S> {
     fovy: Degrees<S>,
     aspect: S,
@@ -253,6 +256,7 @@ impl<S> CameraModel for PerspectiveFov<S> where S: ScalarFloat {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct CameraAttitudeSpec<S> {
     position: Vector3<S>,
     forward: Vector3<S>,
@@ -280,6 +284,7 @@ impl<S> CameraAttitudeSpec<S> where S: ScalarFloat {
     }
 }
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 struct CameraAttitude<S> {
     position: Vector3<S>,
@@ -407,6 +412,7 @@ impl<S> FreeKinematicsSpec<S> where S: ScalarFloat {
     }
 }
 
+#[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct FreeKinematics<S> {
     movement_speed: S,
