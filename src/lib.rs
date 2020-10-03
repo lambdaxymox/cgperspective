@@ -537,7 +537,7 @@ impl<S, M, K> Camera<S, M, K>
         self.attitude.update_movement(&self.kinematics, movement, elapsed_seconds);
     }
 
-    pub fn update_model(&mut self, width: usize, height: usize) {
+    pub fn update_viewport(&mut self, width: usize, height: usize) {
         self.model.update(width, height);
     }
 
