@@ -480,6 +480,147 @@ impl<S> CameraModel for PerspectiveProjection<S> where S: ScalarFloat {
 }
 
 
+/// A description of an orthographic projection with arbitrary `left`, `right`, 
+/// `top`, `bottom`, `near`, and `far` planes.
+///
+/// We assume the following constraints to construct a useful orthographic 
+/// projection
+/// ```text
+/// left   < right
+/// bottom < top
+/// near   < far   (along the negative z-axis).
+/// ```
+/// Each parameter in the specification is a description of the position along 
+/// an axis of a plane that the axis is perpendicular to.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OrthographicSpec<S> {
+    /// The horizontal position of the left-hand plane in camera space.
+    /// The left-hand plane is a plane parallel to the **yz-plane** at
+    /// the origin.
+    left: S,
+    /// The horizontal position of the right-hand plane in camera space.
+    /// The right-hand plane is a plane parallel to the **yz-plane** at
+    /// the origin.
+    right: S,
+    /// The vertical position of the **bottom plane** in camera space.
+    /// The bottom plane is a plane parallel to the **xz-plane** at the origin.
+    bottom: S,
+    /// The vertical position of the **top plane** in camera space.
+    /// the top plane is a plane parallel to the **xz-plane** at the origin.
+    top: S,
+    /// The distance along the **negative z-axis** of the **near plane** from the eye.
+    /// The near plane is a plane parallel to the **xy-plane** at the origin.
+    near: S,
+    /// the distance along the **negative z-axis** of the **far plane** from the eye.
+    /// The far plane is a plane parallel to the **xy-plane** at the origin.
+    far: S,
+}
+
+impl<S> OrthographicSpec<S> {
+    /// Construct a new orthographic specification.
+    #[inline]
+    pub const fn new(left: S, right: S, bottom: S, top: S, near: S, far: S) -> OrthographicSpec<S> {
+        OrthographicSpec {
+            left: left,
+            right: right,
+            bottom: bottom,
+            top: top,
+            near: near,
+            far: far,
+        }
+    }
+}
+
+impl<S> fmt::Display for OrthographicSpec<S> where S: fmt::Display {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "OrthographicSpec [left={}, right={}, bottom={}, top={}, near={}, far={}]",
+            self.left, self.right, self.bottom, self.top, self.near, self.far
+        )
+    }
+}
+
+/// An orthographic projection transformation for converting from camera space to
+/// normalized device coordinates. 
+///
+/// Orthographic projections differ from perspective projections in that 
+/// orthographic projections keeps parallel lines parallel, whereas perspective 
+/// projections preserve the perception of distance. Perspective 
+/// projections preserve the spatial ordering in the distance that points are 
+/// located from the viewing plane.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct OrthographicProjection<S> {
+    /// The horizontal position of the left-hand plane in camera space.
+    /// The left-hand plane is a plane parallel to the **yz-plane** at
+    /// the origin.
+    left: S,
+    /// The horizontal position of the right-hand plane in camera space.
+    /// The right-hand plane is a plane parallel to the **yz-plane** at
+    /// the origin.
+    right: S,
+    /// The vertical position of the **bottom plane** in camera space.
+    /// The bottom plane is a plane parallel to the **xz-plane** at the origin.
+    bottom: S,
+    /// The vertical position of the **top plane** in camera space.
+    /// the top plane is a plane parallel to the **xz-plane** at the origin.
+    top: S,
+    /// The distance along the **negative z-axis** of the **near plane** from the eye.
+    /// The near plane is a plane parallel to the **xy-plane** at the origin.
+    near: S,
+    /// the distance along the **negative z-axis** of the **far plane** from the eye.
+    /// The far plane is a plane parallel to the **xy-plane** at the origin.
+    far: S,
+    /// The underlying matrix that implements the orthographic projection.
+    matrix: Matrix4x4<S>,
+}
+
+impl<S> OrthographicProjection<S> where S: ScalarFloat {
+    /// Get the underlying matrix implementing the orthographic transformation.
+    #[inline]
+    pub fn to_matrix(&self) -> &Matrix4x4<S> {
+        &self.matrix
+    }
+}
+
+impl<S> CameraModel for OrthographicProjection<S> where S: ScalarFloat {
+    type Spec = OrthographicSpec<S>;
+    type Projection = Matrix4x4<S>;
+
+    fn from_spec(spec: &Self::Spec) -> Self {
+        let matrix = Matrix4x4::from_orthographic(
+            spec.left, 
+            spec.right, 
+            spec.bottom, 
+            spec.top,
+            spec.near,
+            spec.far
+        );
+
+        OrthographicProjection {
+            left: spec.left,
+            right: spec.right,
+            bottom: spec.bottom,
+            top: spec.top,
+            near: spec.near,
+            far: spec.far,
+            matrix: matrix,
+        }
+    }
+
+    #[inline]
+    fn projection(&self) -> &Self::Projection {
+        &self.matrix
+    }
+
+    fn update(&mut self, width: usize, height: usize) {
+        let width_float = cglinalg::num_traits::cast::<usize, S>(width).unwrap();
+        let height_float = cglinalg::num_traits::cast::<usize, S>(height).unwrap();
+        unimplemented!();
+    }
+}
+
+
 #[derive(Clone, Debug)]
 pub struct CameraAttitudeSpec<S> {
     position: Vector3<S>,
