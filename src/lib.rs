@@ -2,7 +2,7 @@ use cglinalg::{
     Degrees,
     Vector3,
     Vector4,
-    Matrix4, 
+    Matrix4x4, 
     Quaternion,
     ScalarFloat,
     InvertibleSquareMatrix,
@@ -193,15 +193,6 @@ pub trait CameraKinematics<S> {
     fn update(&self, movement: CameraMovement, elapsed: S) -> DeltaAttitude<S>;
 }
 
-#[derive(Clone, Debug)]
-pub struct PerspectiveFov<S> {
-    fovy: Degrees<S>,
-    aspect: S,
-    near: S,
-    far: S,
-    projection_matrix: Matrix4<S>,
-}
-
 #[repr(C)]
 #[derive(Clone, Debug)]
 pub struct PerspectiveFovSpec<S> {
@@ -222,11 +213,27 @@ impl<S> PerspectiveFovSpec<S> where S: ScalarFloat {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct PerspectiveFov<S> {
+    fovy: Degrees<S>,
+    aspect: S,
+    near: S,
+    far: S,
+    projection_matrix: Matrix4x4<S>,
+}
+
+impl<S> PerspectiveFov<S> {
+    #[inline]
+    pub fn projection_matrix(&self) -> &Matrix4x4<S> {
+        &self.projection_matrix
+    }
+}
+
 impl<S> CameraModel for PerspectiveFov<S> where S: ScalarFloat {
     type Spec = PerspectiveFovSpec<S>;
 
     fn from_spec(spec: &Self::Spec) -> Self {
-        let projection_matrix = Matrix4::from_perspective_fov(
+        let projection_matrix = Matrix4x4::from_perspective_fov(
             spec.fovy, 
             spec.aspect, 
             spec.near, 
@@ -246,7 +253,7 @@ impl<S> CameraModel for PerspectiveFov<S> where S: ScalarFloat {
         let width_float = cglinalg::num_traits::cast::<usize, S>(width).unwrap();
         let height_float = cglinalg::num_traits::cast::<usize, S>(height).unwrap();
         self.aspect = width_float / height_float;
-        self.projection_matrix = Matrix4::from_perspective_fov(
+        self.projection_matrix = Matrix4x4::from_perspective_fov(
             self.fovy, 
             self.aspect, 
             self.near, 
@@ -291,16 +298,18 @@ struct CameraAttitude<S> {
     right: Vector4<S>,
     up: Vector4<S>,
     axis: Quaternion<S>,
-    translation_matrix: Matrix4<S>,
-    rotation_matrix: Matrix4<S>,
-    view_matrix: Matrix4<S>,
+    translation_matrix: Matrix4x4<S>,
+    rotation_matrix: Matrix4x4<S>,
+    view_matrix: Matrix4x4<S>,
 }
 
 impl<S> CameraAttitude<S> where S: ScalarFloat {
     fn from_spec(spec: &CameraAttitudeSpec<S>) -> CameraAttitude<S> {
         let axis = Quaternion::from_parts(S::zero(), spec.axis);
-        let translation_matrix = Matrix4::from_affine_translation(&(-spec.position));
-        let rotation_matrix = Matrix4::from(&axis);
+        let translation_matrix = Matrix4x4::from_affine_translation(
+            &(-spec.position)
+        );
+        let rotation_matrix = Matrix4x4::from(&axis);
         let view_matrix = rotation_matrix * translation_matrix;
 
         CameraAttitude {
@@ -344,7 +353,9 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
     }
 
     #[inline]
-    fn update_movement<K: CameraKinematics<S>>(&mut self, kinematics: &K, movement: CameraMovement, elapsed: S) {
+    fn update_movement<K: CameraKinematics<S>>(
+        &mut self, kinematics: &K, movement: CameraMovement, elapsed: S) {
+        
         let delta_attitude = kinematics.update(movement, elapsed);
         self.update(&delta_attitude);
     }
@@ -356,8 +367,10 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
         self.position += self.up.contract()      *  delta_attitude.y;
         self.position += self.right.contract()   *  delta_attitude.x;
 
-        let trans_mat_inv = Matrix4::from_affine_translation(&self.position);
-        self.translation_matrix = trans_mat_inv.inverse().unwrap();
+        let translation_inv = Matrix4x4::from_affine_translation(
+            &self.position
+        );
+        self.translation_matrix = translation_inv.inverse().unwrap();
     }
 
     // Update the camera axes so we can rotate the camera about the new rotation axes.
@@ -381,17 +394,23 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
         );
         self.axis = q_roll * self.axis;
 
-        let rotation_matrix_inv = Matrix4::from(&self.axis);
+        let rotation_matrix_inv = Matrix4x4::from(&self.axis);
         self.forward = rotation_matrix_inv * self.forward_axis_eye().expand(S::zero());
         self.right   = rotation_matrix_inv * self.right_axis_eye().expand(S::zero());
         self.up      = rotation_matrix_inv * self.up_axis_eye().expand(S::zero());
         self.rotation_matrix = rotation_matrix_inv.inverse().unwrap();
     }
 
+    #[inline]
     fn update(&mut self, delta_attitude: &DeltaAttitude<S>) {
         self.update_orientation(delta_attitude);
         self.update_position(delta_attitude);
         self.view_matrix = self.rotation_matrix * self.translation_matrix;
+    }
+
+    #[inline]
+    fn view_matrix(&self) -> &Matrix4x4<S> {
+        &self.view_matrix
     }
 }
 
@@ -562,6 +581,11 @@ impl<S, M, K> Camera<S, M, K>
     #[inline]
     pub fn axis(&self) -> Vector3<S> {
         self.attitude.axis.v
+    }
+
+    #[inline]
+    pub fn view_matrix(&self) -> &Matrix4x4<S> {
+        self.attitude.view_matrix()
     }
 }
 
