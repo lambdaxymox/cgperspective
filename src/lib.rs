@@ -52,7 +52,7 @@ impl fmt::Display for SimpleCameraMovement {
     }
 }
 
-/// A camera movement that is a sequence of simple movements use to compute
+/// A camera movement is a sequence of simple movements use to compute
 /// a camera trajectory on each game state update.
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct CameraMovement {
@@ -153,6 +153,7 @@ impl ops::SubAssign<SimpleCameraMovement> for CameraMovement {
     }
 }
 
+/// 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct DeltaAttitude<S> {
@@ -177,22 +178,39 @@ impl<S> DeltaAttitude<S> where S: ScalarFloat {
     }
 }
 
+/// A type with this trait can be used as a camera model. A camera model
+/// is a process of mapping incoming light rays from the camera's view space into
+/// the camera model's canonical view volume.
 pub trait CameraModel {
+    /// The type containing the parameters for constructing the camera model.
     type Spec;
+    /// The type representing the underlying projection from view space into 
+    /// normalized device coordinates.
     type Projection;
 
+    /// Construct a camera model from a description of the 
+    /// camera model's parameters.
     fn from_spec(spec: &Self::Spec) -> Self;
 
+    /// Exposed the underlying transformation that maps vector in the camera's
+    /// view space into the canonical view volume of the camera.
     fn projection(&self) -> &Self::Projection;
 
+    /// Update the camera model based on changes in the viewport dimensions.
     fn update(&mut self, width: usize, height: usize);
 }
 
+/// A type with this trait controls how a camera moves throughout a scene in
+/// Euclidean space.
 pub trait CameraKinematics<S> {
+    /// A description of the parameters for the camera kinematics model.
     type Spec;
 
+    /// Construct the kinematics for a camera from its specification.
     fn from_spec(spec: &Self::Spec) -> Self;
     
+    /// Compute the change in the position and orientation of the camera 
+    /// based on the input camera movement.
     fn update(&self, movement: CameraMovement, elapsed: S) -> DeltaAttitude<S>;
 }
 
@@ -472,10 +490,9 @@ impl<S> CameraModel for PerspectiveProjection<S> where S: ScalarFloat {
         &self.matrix
     }
 
-    fn update(&mut self, width: usize, height: usize) {
-        let width_float = cglinalg::num_traits::cast::<usize, S>(width).unwrap();
-        let height_float = cglinalg::num_traits::cast::<usize, S>(height).unwrap();
-        unimplemented!();
+    fn update(&mut self, _width: usize, _height: usize) {
+        // let width_float = cglinalg::num_traits::cast::<usize, S>(width).unwrap();
+        // let height_float = cglinalg::num_traits::cast::<usize, S>(height).unwrap();
     }
 }
 
@@ -613,10 +630,9 @@ impl<S> CameraModel for OrthographicProjection<S> where S: ScalarFloat {
         &self.matrix
     }
 
-    fn update(&mut self, width: usize, height: usize) {
-        let width_float = cglinalg::num_traits::cast::<usize, S>(width).unwrap();
-        let height_float = cglinalg::num_traits::cast::<usize, S>(height).unwrap();
-        unimplemented!();
+    fn update(&mut self, _width: usize, _height: usize) {
+        // let width_float = cglinalg::num_traits::cast::<usize, S>(width).unwrap();
+        // let height_float = cglinalg::num_traits::cast::<usize, S>(height).unwrap();
     }
 }
 
@@ -909,13 +925,17 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
     }
 }
 
+/// A specification of the kinematics parameters for a freely moving camera.
 #[derive(Copy, Clone, Debug)]
 pub struct FreeKinematicsSpec<S> {
+    /// The movement speed of the camera.
     movement_speed: S,
+    /// The rotation speed of the camera.
     rotation_speed: S,
 }
 
 impl<S> FreeKinematicsSpec<S> where S: ScalarFloat {
+    /// Construct a new specification for a camera with free kinematics.
     #[inline]
     pub fn new(movement_speed: S, rotation_speed: S) -> FreeKinematicsSpec<S> {
         FreeKinematicsSpec {
@@ -925,10 +945,14 @@ impl<S> FreeKinematicsSpec<S> where S: ScalarFloat {
     }
 }
 
+/// A kinematics model for a freely moving camera that moves moves at constant
+/// speed and constant rotation speed.
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct FreeKinematics<S> {
+    /// The movement speed of the camera.
     movement_speed: S,
+    /// The rotation speed of the camera.
     rotation_speed: S,
 }
 
@@ -993,11 +1017,25 @@ impl<S> CameraKinematics<S> for FreeKinematics<S> where S: ScalarFloat {
     }
 }
 
+
+/// A controllable moveable camera that maps light rays from a scene to pixels 
+/// in a viewport. This camera model has three components:
+/// * A camera model for mapping light rays to images. This can model many kinds
+///   of ranging from the usual orthographic and perspective pinhole cameras, to
+///   more sophisticated camera models including effects like depth of field, etc.
+/// * The camera's attitude: the attitude is the camera's orientation and position in
+///   world space, modeled as a rotation and a translation.
+/// * A kinematics model for the camera. The kinematics model is a description of how
+///   the camera moves around the scene in response to camera movement input.
 #[repr(C)]
 #[derive(Clone, Debug)]
 pub struct Camera<S, M, K> {
+    /// The camera's model for mapping light rays to normalized device
+    /// coordinates.
     model: M,
+    /// The position and orientation of the camera in world space.
     attitude: CameraAttitude<S>,
+    /// The kinematics model for the camera.
     kinematics: K,
 }
 
@@ -1006,6 +1044,7 @@ impl<S, M, K> Camera<S, M, K>
           M: CameraModel,
           K: CameraKinematics<S>,
 {
+    /// Construct a new camera.
     pub fn new(
         model_spec: &M::Spec, 
         attitude_spec: &CameraAttitudeSpec<S>, 
@@ -1018,19 +1057,24 @@ impl<S, M, K> Camera<S, M, K>
         }
     }
 
-    pub fn update_movement(&mut self, movement: CameraMovement, elapsed_seconds: S) {
-        self.attitude.update_movement(&self.kinematics, movement, elapsed_seconds);
+    /// Update the motion of the camera based on the input camera movement
+    /// `movement` and the amount of time passed `elapsed`.
+    pub fn update_movement(&mut self, movement: CameraMovement, elapsed: S) {
+        self.attitude.update_movement(&self.kinematics, movement, elapsed);
     }
 
+    /// Update the camera model based on changes to the viewport's dimensions.
     pub fn update_viewport(&mut self, width: usize, height: usize) {
         self.model.update(width, height);
     }
 
+    /// Update the camera's attitude (i.e. position and orientation) in
+    /// world space.
     pub fn update_attitude(&mut self, delta_attitude: &DeltaAttitude<S>) {
         self.attitude.update(delta_attitude);
     }
 
-    /// Get the camera's eye position in world space.
+    /// Get the camera's position in world space.
     #[inline]
     pub fn position(&self) -> Vector3<S> { 
         self.attitude.position
@@ -1054,19 +1098,19 @@ impl<S, M, K> Camera<S, M, K>
         self.attitude.forward.contract()
     }
     
-    /// Get the camera's up direction in camera space.
+    /// Get the camera's **vertical y-axis** in camera view space.
     #[inline]
     pub fn up_axis_eye(&self) -> Vector3<S> {
         self.attitude.up_axis_eye()
     }
         
-    /// Get the camera's right axis in camera space.
+    /// Get the camera's **horizontal x-axis** in camera view space.
     #[inline]
     pub fn right_axis_eye(&self) -> Vector3<S> {
         self.attitude.right_axis_eye()
     }
         
-    /// Get the camera's forward axis in camera space.
+    /// Get the camera's **forward z-axis** in camera view space.
     #[inline]
     pub fn forward_axis_eye(&self) -> Vector3<S> {
         self.attitude.forward_axis_eye()
@@ -1074,15 +1118,18 @@ impl<S, M, K> Camera<S, M, K>
     
     /// Get the camera's axis of rotation.
     #[inline]
-    pub fn axis(&self) -> Vector3<S> {
+    pub fn rotation_axis(&self) -> Vector3<S> {
         self.attitude.axis.v
     }
 
+    /// Get the camera's viewing matrix.
     #[inline]
     pub fn view_matrix(&self) -> &Matrix4x4<S> {
         self.attitude.view_matrix()
     }
 
+    /// Return the underlying projection the camera uses to transform from
+    /// view space to the camera's canonical view volume.
     #[inline]
     pub fn projection(&self) -> &M::Projection {
         self.model.projection()

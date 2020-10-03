@@ -7,11 +7,6 @@ use cglinalg::{
     Angle,
     Degrees,
     Radians,
-    Point3,
-    Vector3,
-};
-use cglinalg::approx::{
-    relative_eq,
 };
 use cgperspective::{
     PerspectiveSpec,
