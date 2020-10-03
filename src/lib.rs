@@ -179,8 +179,11 @@ impl<S> DeltaAttitude<S> where S: ScalarFloat {
 
 pub trait CameraModel {
     type Spec;
+    type Projection;
 
     fn from_spec(spec: &Self::Spec) -> Self;
+
+    fn projection(&self) -> &Self::Projection;
 
     fn update(&mut self, width: usize, height: usize);
 }
@@ -213,6 +216,7 @@ impl<S> PerspectiveFovSpec<S> where S: ScalarFloat {
     }
 }
 
+#[repr(C)]
 #[derive(Clone, Debug)]
 pub struct PerspectiveFov<S> {
     fovy: Degrees<S>,
@@ -231,6 +235,7 @@ impl<S> PerspectiveFov<S> {
 
 impl<S> CameraModel for PerspectiveFov<S> where S: ScalarFloat {
     type Spec = PerspectiveFovSpec<S>;
+    type Projection = Matrix4x4<S>;
 
     fn from_spec(spec: &Self::Spec) -> Self {
         let projection_matrix = Matrix4x4::from_perspective_fov(
@@ -247,6 +252,11 @@ impl<S> CameraModel for PerspectiveFov<S> where S: ScalarFloat {
             far: spec.far,
             projection_matrix: projection_matrix,
         }
+    }
+
+    #[inline]
+    fn projection(&self) -> &Self::Projection {
+        &self.projection_matrix
     }
 
     fn update(&mut self, width: usize, height: usize) {
@@ -586,6 +596,11 @@ impl<S, M, K> Camera<S, M, K>
     #[inline]
     pub fn view_matrix(&self) -> &Matrix4x4<S> {
         self.attitude.view_matrix()
+    }
+
+    #[inline]
+    pub fn projection(&self) -> &M::Projection {
+        self.model.projection()
     }
 }
 
