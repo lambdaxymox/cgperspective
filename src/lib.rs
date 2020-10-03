@@ -621,6 +621,142 @@ impl<S> CameraModel for OrthographicProjection<S> where S: ScalarFloat {
 }
 
 
+/// An orthographic projection based on the `near` plane, the `far` plane and 
+/// the vertical field of view angle `fovy` and the horizontal/vertical aspect 
+/// ratio `aspect`.
+///
+/// We assume the following constraints to make a useful orthographic projection 
+/// camera model.
+/// ```text
+/// 0 radians < fovy < pi radians
+/// aspect > 0
+/// near < far (along the negative z-axis)
+/// ```
+/// This orthographic projection model imposes some constraints on the more 
+/// general orthographic specification based on the arbitrary planes. The `fovy` 
+/// parameter combined with the aspect ratio `aspect` ensures that the top and 
+/// bottom planes are the same distance from the eye position along the vertical 
+/// axis on opposite side. They ensure that the `left` and `right` planes are 
+/// equidistant from the eye on opposite sides along the horizontal axis. 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct OrthographicFovSpec<S> {
+    /// The vertical field of view angle of the orthographic camera model 
+    /// viewport.
+    fovy: Degrees<S>,
+    /// The ratio of the horizontal width to the vertical height.
+    aspect: S,
+    /// The position of the near plane along the **negative z-axis**.
+    near: S,
+    /// The position of the far plane along the **negative z-axis**.
+    far: S,
+}
+
+impl<S> OrthographicFovSpec<S> {
+    /// Construct a new orthographic projection operation specification
+    /// based on the vertical field of view angle `fovy`, the `near` plane, the 
+    /// `far` plane, and aspect ratio `aspect`.
+    #[inline]
+    pub fn new(fovy: Degrees<S>, aspect: S, near: S, far: S) -> OrthographicFovSpec<S> {
+        OrthographicFovSpec {
+            fovy: fovy,
+            aspect: aspect,
+            near: near,
+            far: far,
+        }
+    }
+}
+
+impl<S> fmt::Display for OrthographicFovSpec<S> where S: fmt::Display {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "OrthographicFovSpec [fovy={}, aspect={}, near={}, far={}]",
+            self.fovy, self.aspect, self.near, self.far
+        )
+    }
+}
+
+/// An orthographic projection camera model for converting from camera space to
+/// normalized device coordinates.
+///
+/// Orthographic projections differ from perspective projections in that 
+/// orthographic projections keeps parallel lines parallel, whereas perspective 
+/// projections preserve the perception of distance. Perspective 
+/// projections preserve the spatial ordering in the distance that points are 
+/// located from the viewing plane.
+#[derive(Copy, Clone, Debug)]
+pub struct OrthographicFovProjection<S> {
+    /// The vertical field of view angle of the orthographic camera model 
+    /// viewport.
+    fovy: Degrees<S>,
+    /// The ratio of the horizontal width to the vertical height.
+    aspect: S,
+    /// The position of the near plane along the **negative z-axis**.
+    near: S,
+    /// The position of the far plane along the **negative z-axis**.
+    far: S,
+    /// The underlying matrix that implements the orthographic projection.
+    matrix: Matrix4x4<S>,
+}
+
+impl<S> OrthographicFovProjection<S> where S: ScalarFloat {
+    /// Get the underlying matrix implementing the orthographic camera model.
+    #[inline]
+    pub fn to_matrix(&self) -> &Matrix4x4<S> {
+        &self.matrix
+    }
+}
+
+impl<S> fmt::Display for OrthographicFovProjection<S> where S: fmt::Display {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "OrthographicFovProjection [{}]",
+            self.matrix
+        )
+    }
+}
+
+impl<S> CameraModel for OrthographicFovProjection<S> where S: ScalarFloat {
+    type Spec = OrthographicFovSpec<S>;
+    type Projection = Matrix4x4<S>;
+
+    fn from_spec(spec: &Self::Spec) -> Self {
+        let matrix = Matrix4x4::from_orthographic_fov(
+            spec.fovy, 
+            spec.aspect, 
+            spec.near,
+            spec.far
+        );
+
+        OrthographicFovProjection {
+            fovy: spec.fovy,
+            aspect: spec.aspect,
+            near: spec.near,
+            far: spec.far,
+            matrix: matrix,
+        }
+    }
+
+    #[inline]
+    fn projection(&self) -> &Self::Projection {
+        &self.matrix
+    }
+
+    fn update(&mut self, width: usize, height: usize) {
+        let width_float = cglinalg::num_traits::cast::<usize, S>(width).unwrap();
+        let height_float = cglinalg::num_traits::cast::<usize, S>(height).unwrap();
+        self.aspect = width_float / height_float;
+        self.matrix = Matrix4x4::from_orthographic_fov(
+            self.fovy, 
+            self.aspect, 
+            self.near, 
+            self.far
+        );
+    }
+}
+
+
 #[derive(Clone, Debug)]
 pub struct CameraAttitudeSpec<S> {
     position: Vector3<S>,
