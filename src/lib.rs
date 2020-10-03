@@ -155,21 +155,43 @@ impl ops::SubAssign<SimpleCameraMovement> for CameraMovement {
     }
 }
 
-/// 
+
+/// This type carries all the information describing the change in attitude of
+/// the camera in Euclidean world space. This type is generated either by processing 
+/// camera movements, or it can be sent directly to the camera. 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct DeltaAttitude<S> {
+    /// The change in the `x`-component of the camera position in world space.
     x: S,
+    /// The change in the `y`-component of the camera position in world space.
     y: S,
+    /// The change in the `z`-component of the camera position in world space.
     z: S,
+    /// The change in the orientation of the camera about the **negative z-axis**.
     roll: S,
+    /// The change in the orientation of the camera about the **positive y-axis**.
     yaw: S,
+    /// The change in the orientation of the camera about the **positive x-axis**.
     pitch: S,
 }
 
 impl<S> DeltaAttitude<S> where S: ScalarFloat {
-    fn zero() -> DeltaAttitude<S> {
-        DeltaAttitude {
+    /// Construct a new change in attitude.
+    pub fn new(x: S, y: S, z: S, roll: S, yaw: S, pitch: S) -> Self {
+        Self {
+            x: x,
+            y: y,
+            z: z,
+            roll: roll,
+            yaw: yaw,
+            pitch: pitch,
+        }
+    }
+
+    /// Construct zero change in attitude.
+    pub fn zero() -> Self {
+        Self {
             x: S::zero(),
             y: S::zero(),
             z: S::zero(),
@@ -1043,7 +1065,7 @@ impl<S> CameraKinematics<S> for FreeKinematics<S> where S: ScalarFloat {
 }
 
 
-/// A controllable moveable camera that maps light rays from a scene to pixels 
+/// A controllable camera that maps light rays from a scene to pixels 
 /// in a viewport. This camera model has three components:
 /// * A camera model for mapping light rays to images. This can model many kinds
 ///   of ranging from the usual orthographic and perspective pinhole cameras, to
