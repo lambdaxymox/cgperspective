@@ -1,6 +1,6 @@
 [package]
 name = "cgperspective"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["LambdaXymox <lambda.xymox@gmail.com>"]
 edition = "2018"
 description = "A flexible camera model for computer graphics applications."

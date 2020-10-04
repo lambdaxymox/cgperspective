@@ -1,6 +1,7 @@
 /*!
 
 */
+#![allow(clippy::redundant_field_names)]
 use cglinalg::{
     Degrees,
     Vector3,
@@ -11,6 +12,7 @@ use cglinalg::{
     InvertibleSquareMatrix,
     Unit,
 };
+
 use core::fmt;
 use core::ops;
 
@@ -174,6 +176,18 @@ impl ops::SubAssign<SimpleCameraMovement> for CameraMovement {
     }
 }
 
+impl fmt::Debug for CameraMovement {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "CameraMovement [{:#X})]", self.total)
+    }
+}
+
+impl fmt::Display for CameraMovement {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "CameraMovement [{:#X})]", self.total) 
+    }
+}
+
 
 /// This type carries all the information describing the change in attitude of
 /// the camera in Euclidean world space. This type is generated either by processing 
@@ -233,6 +247,7 @@ impl<S> fmt::Display for DeltaAttitude<S> where S: fmt::Display {
     }
 }
 
+
 /// A type with this trait can be used as a camera model. A camera model
 /// is a process of mapping incoming light rays from the camera's view space into
 /// the camera model's canonical view volume.
@@ -254,6 +269,7 @@ pub trait CameraModel {
     /// Update the camera model based on changes in the viewport dimensions.
     fn update(&mut self, width: usize, height: usize);
 }
+
 
 /// A type with this trait controls how a camera moves throughout a scene in
 /// Euclidean space.
@@ -324,6 +340,7 @@ impl<S> fmt::Display for PerspectiveFovSpec<S> where S: fmt::Display {
        )
     }
 }
+
 
 /// A perspective projection transformation for converting from camera space to
 /// normalized device coordinates based on the perspective field of view model.
@@ -470,6 +487,7 @@ impl<S> fmt::Display for PerspectiveSpec<S> where S: fmt::Display {
         )
     }
 }
+
 
 /// A perspective projection transformation for converting from camera space to
 /// normalized device coordinates.
@@ -625,6 +643,7 @@ impl<S> fmt::Display for OrthographicSpec<S> where S: fmt::Display {
     }
 }
 
+
 /// An orthographic projection transformation for converting from camera space to
 /// normalized device coordinates. 
 ///
@@ -770,6 +789,7 @@ impl<S> fmt::Display for OrthographicFovSpec<S> where S: fmt::Display {
         )
     }
 }
+
 
 /// An orthographic projection camera model for converting from camera space to
 /// normalized device coordinates.
@@ -1055,6 +1075,7 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
     }
 }
 
+
 /// A specification of the kinematics parameters for a freely moving camera.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct FreeKinematicsSpec<S> {
@@ -1074,6 +1095,7 @@ impl<S> FreeKinematicsSpec<S> where S: ScalarFloat {
         }
     }
 }
+
 
 /// A kinematics model for a freely moving camera that moves moves at constant
 /// speed and constant rotation speed in world space.
@@ -1146,6 +1168,8 @@ impl<S> CameraKinematics<S> for FreeKinematics<S> where S: ScalarFloat {
         delta_attitude
     }
 }
+
+
 
 
 /// A controllable camera that maps light rays from a scene to pixels 
