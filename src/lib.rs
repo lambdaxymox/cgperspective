@@ -79,6 +79,7 @@ pub struct CameraMovement {
 }
 
 impl CameraMovement {
+    #[inline]
     pub const fn new() -> CameraMovement {
         CameraMovement {
             total: 0
@@ -195,6 +196,7 @@ pub struct DeltaAttitude<S> {
 
 impl<S> DeltaAttitude<S> where S: ScalarFloat {
     /// Construct a new change in attitude.
+    #[inline]
     pub fn new(x: S, y: S, z: S, roll: S, yaw: S, pitch: S) -> Self {
         Self {
             x: x,
@@ -207,6 +209,7 @@ impl<S> DeltaAttitude<S> where S: ScalarFloat {
     }
 
     /// Construct zero change in attitude.
+    #[inline]
     pub fn zero() -> Self {
         Self {
             x: S::zero(),
@@ -216,6 +219,16 @@ impl<S> DeltaAttitude<S> where S: ScalarFloat {
             yaw: S::zero(),
             pitch: S::zero(),
         }
+    }
+}
+
+impl<S> fmt::Display for DeltaAttitude<S> where S: fmt::Display {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "DeltaAttitude [x={}, y={}, z={}, roll={}, yaw={}, pitch={}]",
+            self.x, self.y, self.z, self.roll, self.yaw, self.pitch
+        )
     }
 }
 
@@ -343,6 +356,16 @@ impl<S> PerspectiveFovProjection<S> {
     pub fn to_matrix(&self) -> &Matrix4x4<S> {
         &self.matrix
     }
+}
+
+impl<S> fmt::Display for PerspectiveFovProjection<S> where S: fmt::Display {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "PerspectiveFovProjection [{}]",
+            self.matrix
+        )
+    }    
 }
 
 impl<S> CameraModel for PerspectiveFovProjection<S> where S: ScalarFloat {
@@ -607,6 +630,7 @@ impl<S> fmt::Display for OrthographicSpec<S> where S: fmt::Display {
 /// projections preserve the perception of distance. Perspective 
 /// projections preserve the spatial ordering in the distance that points are 
 /// located from the viewing plane.
+#[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct OrthographicProjection<S> {
     /// The horizontal position of the left-hand plane in camera space.
@@ -638,6 +662,16 @@ impl<S> OrthographicProjection<S> where S: ScalarFloat {
     #[inline]
     pub fn to_matrix(&self) -> &Matrix4x4<S> {
         &self.matrix
+    }
+}
+
+impl<S> fmt::Display for OrthographicProjection<S> where S: fmt::Display {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "Orthographicrojection [{}]",
+            self.matrix
+        )
     }
 }
 
@@ -741,6 +775,7 @@ impl<S> fmt::Display for OrthographicFovSpec<S> where S: fmt::Display {
 /// projections preserve the perception of distance. Perspective 
 /// projections preserve the spatial ordering in the distance that points are 
 /// located from the viewing plane.
+#[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct OrthographicFovProjection<S> {
     /// The vertical field of view angle of the orthographic camera model 
@@ -814,12 +849,23 @@ impl<S> CameraModel for OrthographicFovProjection<S> where S: ScalarFloat {
 }
 
 
-#[derive(Clone, Debug)]
+/// A specification describing a rigid body transformation for the attitude 
+/// (position and orientation) of a camera. The spec describes the location, 
+/// local coordinate system, and rotation axis for the camera in world space.
+/// The coordinate transformation is right-handed orthonormal transformation.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CameraAttitudeSpec<S> {
+    /// The location of the camera eye position in world space.
     position: Vector3<S>,
+    /// The direction of the **negative z-axis** (forward axis) of the camera.
     forward: Vector3<S>,
+    /// The direction of the **positive x-axis** (right axis) of the camera.
     right: Vector3<S>,
+    /// The direction of the **positive y-axis** (up axis) of the camera.
     up: Vector3<S>,
+    /// The **axis of rotation** of the camera. It is not necessary that 
+    /// the axis of rotation of the camera be the same as one of the coordinate
+    /// axes.
     axis: Vector3<S>,
 }
 
@@ -843,10 +889,23 @@ impl<S> CameraAttitudeSpec<S> where S: ScalarFloat {
     }
 }
 
+impl<S> fmt::Display for CameraAttitudeSpec<S> where S: fmt::Display {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "CameraAttitudeSpec [position={}, forward={}, right={} up={}, axis={}]",
+            self.position, self.forward, self.right, self.up, self.axis
+        )
+    }
+}
+
+
 /// This type contains all the data for tracking the position and orientation
 /// of a camera in world space as well as for transforming vectors from world 
 /// space to the camera's view space. The camera attitude here uses a 
 /// right-handed coordinate system facing along the camera's **negative z-axis**.
+/// The coordinate system is a right-handed coordinate system with orthonormal
+/// basis vectors.
 #[repr(C)]
 #[derive(Clone, Debug)]
 struct CameraAttitude<S> {
@@ -858,7 +917,9 @@ struct CameraAttitude<S> {
     right: Vector4<S>,
     /// The vertical axis of the camera's viewing plane.
     up: Vector4<S>,
-    /// The axis or rotation of the camera.
+    /// The **axis of rotation** of the camera. It is not necessary that 
+    /// the axis of rotation of the camera be the same as one of the coordinate
+    /// axes.
     axis: Quaternion<S>,
     /// The translation matrix mapping objects from the world space coordinate
     /// frame to the coordinate frame centered at the eye position of the camera.
@@ -990,7 +1051,7 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
 }
 
 /// A specification of the kinematics parameters for a freely moving camera.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct FreeKinematicsSpec<S> {
     /// The movement speed of the camera.
     movement_speed: S,
@@ -1010,9 +1071,9 @@ impl<S> FreeKinematicsSpec<S> where S: ScalarFloat {
 }
 
 /// A kinematics model for a freely moving camera that moves moves at constant
-/// speed and constant rotation speed.
+/// speed and constant rotation speed in world space.
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct FreeKinematics<S> {
     /// The movement speed of the camera.
     movement_speed: S,
