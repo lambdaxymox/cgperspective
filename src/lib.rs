@@ -79,6 +79,7 @@ pub struct CameraMovement {
 }
 
 impl CameraMovement {
+    /// Construct a new empty camera movement.
     #[inline]
     pub const fn new() -> CameraMovement {
         CameraMovement {
@@ -372,6 +373,7 @@ impl<S> CameraModel for PerspectiveFovProjection<S> where S: ScalarFloat {
     type Spec = PerspectiveFovSpec<S>;
     type Projection = Matrix4x4<S>;
 
+    #[inline]
     fn from_spec(spec: &Self::Spec) -> Self {
         let matrix = Matrix4x4::from_perspective_fov(
             spec.fovy, 
@@ -528,6 +530,7 @@ impl<S> CameraModel for PerspectiveProjection<S> where S: ScalarFloat {
     type Spec = PerspectiveSpec<S>;
     type Projection = Matrix4x4<S>;
 
+    #[inline]
     fn from_spec(spec: &Self::Spec) -> Self {
         let matrix = Matrix4x4::from_perspective(
             spec.left, 
@@ -679,6 +682,7 @@ impl<S> CameraModel for OrthographicProjection<S> where S: ScalarFloat {
     type Spec = OrthographicSpec<S>;
     type Projection = Matrix4x4<S>;
 
+    #[inline]
     fn from_spec(spec: &Self::Spec) -> Self {
         let matrix = Matrix4x4::from_orthographic(
             spec.left, 
@@ -813,6 +817,7 @@ impl<S> CameraModel for OrthographicFovProjection<S> where S: ScalarFloat {
     type Spec = OrthographicFovSpec<S>;
     type Projection = Matrix4x4<S>;
 
+    #[inline]
     fn from_spec(spec: &Self::Spec) -> Self {
         let matrix = Matrix4x4::from_orthographic_fov(
             spec.fovy, 
