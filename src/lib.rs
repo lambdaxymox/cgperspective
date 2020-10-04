@@ -7,11 +7,11 @@ computer graphics applications. It provides a flexible camera model with the
 following characteristics:
 
 * A generic kinematics property for describing how to move the camera in world 
-  space.
+  space in response to control inputs..
 * A generic camera model property for using different camera models to render
   different kinds of effects. The most common use case is either a perspective 
-  projection or orthographic project pinhole camera model but it can accomodate
-  more sophicated camera models as well.
+  projection or orthographic project pinhole camera model but it can accommodate
+  more sophisticated camera models as well.
 
 ## Using **cgperspective**
 Make certain you have the latest version of the 
@@ -21,13 +21,13 @@ Make certain you have the latest version of the
 After that, add the following line to your `Cargo.toml` file:
 ```ignore
 [dependencies]
-cgperspective = "0.1.8"
+cgperspective = "0.1.9"
 ```
 
 ## Features
-**cgperspective** is designed primarily as a building block for real-time 
+**cgperspective** is designed to be a building block for real-time 
 computer graphics programs built on top of a graphics API such as OpenGL,
-Vulkan, or Direct3D. It's best use case would be small games, tech demos,
+Vulkan, or Direct3D. Common use cases would be small games, tech demos,
 or as a building block for some kind of runtime environment. It is not meant
 to be used with an existing three-dimensional development framework, as those
 typically provide their own camera models. 
@@ -40,8 +40,8 @@ The library provides the following features:
   from the scene into the eye into vectors in normalized device coordinates.
   This allows the use of custom lighting effects such as depth of field and 
   occlusion culling.
-* Several default camera models for traditional pinhole cameras.
-* A `CameraMovement` type that descibes how the camera moves between each frame.
+* Several default camera models for pinhole cameras.
+* A `CameraMovement` type that describes how the camera moves between each frame.
   This allows the camera model to be windowing system agnostic because camera 
   attitude updates are not coupled to the windowing system input processing system.
 * A generic `Camera` type that enables generic programming of the camera type.
