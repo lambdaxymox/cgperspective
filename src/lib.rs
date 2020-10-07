@@ -56,6 +56,7 @@ The library provides the following features:
 #![allow(clippy::redundant_field_names)]
 use cglinalg::{
     Degrees,
+    Radians,
     Vector3,
     Vector4,
     Matrix4x4, 
@@ -63,6 +64,7 @@ use cglinalg::{
     ScalarFloat,
     InvertibleSquareMatrix,
     Unit,
+    Zero,
 };
 
 use core::fmt;
@@ -254,24 +256,24 @@ pub struct DeltaAttitude<S> {
     /// The change in the `z`-component of the camera position in world space.
     z: S,
     /// The change in the orientation of the camera about the **negative z-axis**.
-    roll: S,
+    roll: Radians<S>,
     /// The change in the orientation of the camera about the **positive y-axis**.
-    yaw: S,
+    yaw: Radians<S>,
     /// The change in the orientation of the camera about the **positive x-axis**.
-    pitch: S,
+    pitch: Radians<S>,
 }
 
 impl<S> DeltaAttitude<S> where S: ScalarFloat {
     /// Construct a new change in attitude.
     #[inline]
-    pub fn new(x: S, y: S, z: S, roll: S, yaw: S, pitch: S) -> Self {
+    pub fn new<A: Into<Radians<S>>>(x: S, y: S, z: S, roll: A, yaw: A, pitch: A) -> Self {
         Self {
             x: x,
             y: y,
             z: z,
-            roll: roll,
-            yaw: yaw,
-            pitch: pitch,
+            roll: roll.into(),
+            yaw: yaw.into(),
+            pitch: pitch.into(),
         }
     }
 
@@ -282,9 +284,9 @@ impl<S> DeltaAttitude<S> where S: ScalarFloat {
             x: S::zero(),
             y: S::zero(),
             z: S::zero(),
-            roll: S::zero(),
-            yaw: S::zero(),
-            pitch: S::zero(),
+            roll: Radians::zero(),
+            yaw: Radians::zero(),
+            pitch: Radians::zero(),
         }
     }
 }
@@ -1088,19 +1090,19 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
     fn update_orientation(&mut self, delta_attitude: &DeltaAttitude<S>) {
         let axis_yaw = Unit::from_value(self.up.contract());
         let q_yaw = Quaternion::from_axis_angle(
-            &axis_yaw, Degrees(delta_attitude.yaw)
+            &axis_yaw, delta_attitude.yaw
         );
         self.axis = q_yaw * self.axis;
 
         let axis_pitch = Unit::from_value(self.right.contract());
         let q_pitch = Quaternion::from_axis_angle(
-            &axis_pitch, Degrees(delta_attitude.pitch)
+            &axis_pitch, delta_attitude.pitch
         );
         self.axis = q_pitch * self.axis;
 
         let axis_roll = Unit::from_value(self.forward.contract());
         let q_roll = Quaternion::from_axis_angle(
-            &axis_roll, Degrees(delta_attitude.roll), 
+            &axis_roll, delta_attitude.roll, 
         );
         self.axis = q_roll * self.axis;
 
@@ -1133,17 +1135,17 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
 pub struct FreeKinematicsSpec<S> {
     /// The movement speed of the camera.
     movement_speed: S,
-    /// The rotation speed of the camera.
-    rotation_speed: S,
+    /// The rotation speed of the camera, in radians per second.
+    rotation_speed: Radians<S>,
 }
 
 impl<S> FreeKinematicsSpec<S> where S: ScalarFloat {
     /// Construct a new specification for a camera with free kinematics.
     #[inline]
-    pub fn new(movement_speed: S, rotation_speed: S) -> FreeKinematicsSpec<S> {
+    pub fn new<A: Into<Radians<S>>>(movement_speed: S, rotation_speed: A) -> FreeKinematicsSpec<S> {
         FreeKinematicsSpec {
             movement_speed: movement_speed,
-            rotation_speed: rotation_speed,
+            rotation_speed: rotation_speed.into(),
         }
     }
 }
@@ -1157,7 +1159,7 @@ pub struct FreeKinematics<S> {
     /// The movement speed of the camera.
     movement_speed: S,
     /// The rotation speed of the camera.
-    rotation_speed: S,
+    rotation_speed: Radians<S>,
 }
 
 impl<S> CameraKinematics<S> for FreeKinematics<S> where S: ScalarFloat {
