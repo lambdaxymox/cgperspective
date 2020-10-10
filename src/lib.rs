@@ -53,6 +53,7 @@ The library provides the following features:
   for their respective custom to types.
 */
 
+#![no_std]
 #![allow(clippy::redundant_field_names)]
 use cglinalg::{
     Degrees,
