@@ -21,7 +21,7 @@ Make certain you have the latest version of the
 After that, add the following line to your `Cargo.toml` file:
 ```ignore
 [dependencies]
-cgperspective = "0.1.9"
+cgperspective = "0.1.14"
 ```
 
 ## Features
@@ -55,6 +55,10 @@ The library provides the following features:
 
 #![no_std]
 #![allow(clippy::redundant_field_names)]
+extern crate cglinalg;
+extern crate num_traits;
+
+
 use cglinalg::{
     Degrees,
     Radians,
@@ -469,8 +473,8 @@ impl<S> CameraModel for PerspectiveFovProjection<S> where S: ScalarFloat {
     }
 
     fn update(&mut self, width: usize, height: usize) {
-        let width_float = cglinalg::num_traits::cast::<usize, S>(width).unwrap();
-        let height_float = cglinalg::num_traits::cast::<usize, S>(height).unwrap();
+        let width_float = num_traits::cast::<usize, S>(width).unwrap();
+        let height_float = num_traits::cast::<usize, S>(height).unwrap();
         self.aspect = width_float / height_float;
         self.matrix = Matrix4x4::from_perspective_fov(
             self.fovy, 
@@ -916,8 +920,8 @@ impl<S> CameraModel for OrthographicFovProjection<S> where S: ScalarFloat {
     }
 
     fn update(&mut self, width: usize, height: usize) {
-        let width_float = cglinalg::num_traits::cast::<usize, S>(width).unwrap();
-        let height_float = cglinalg::num_traits::cast::<usize, S>(height).unwrap();
+        let width_float = num_traits::cast::<usize, S>(width).unwrap();
+        let height_float = num_traits::cast::<usize, S>(height).unwrap();
         self.aspect = width_float / height_float;
         self.matrix = Matrix4x4::from_orthographic_fov(
             self.fovy, 

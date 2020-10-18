@@ -1,6 +1,6 @@
 [package]
 name = "cgperspective"
-version = "0.1.13"
+version = "0.1.14"
 authors = ["LambdaXymox <lambda.xymox@gmail.com>"]
 edition = "2018"
 description = "A flexible camera model for computer graphics applications."
@@ -11,6 +11,7 @@ readme = "README.md"
 repository = "https://github.com/lambdaxymox/cgperspective"
 
 [dependencies]
+num-traits = "0.2.12"
 cglinalg = { git = "https://github.com/lambdaxymox/cglinalg/" }
 
 [lib]
