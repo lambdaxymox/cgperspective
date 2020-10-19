@@ -20,7 +20,7 @@ Make certain you have the latest version of the
 After that, add the following line to your `Cargo.toml` file:
 ```ignore
 [dependencies]
-cgperspective = "0.1.14"
+cgperspective = "0.1.15"
 ```
 
 ## Features
