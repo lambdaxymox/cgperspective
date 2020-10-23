@@ -21,7 +21,7 @@ Make certain you have the latest version of the
 After that, add the following line to your `Cargo.toml` file:
 ```ignore
 [dependencies]
-cgperspective = "0.1.15"
+cgperspective = "0.1.16"
 ```
 
 ## Features
@@ -1026,9 +1026,9 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
 
         CameraAttitude {
             position: spec.position,
-            forward: spec.forward.expand(S::zero()),
-            right: spec.right.expand(S::zero()),
-            up: spec.up.expand(S::zero()),
+            forward: spec.forward.extend(S::zero()),
+            right: spec.right.extend(S::zero()),
+            up: spec.up.extend(S::zero()),
             axis: axis,
             translation_matrix: translation_matrix,
             rotation_matrix: rotation_matrix,
@@ -1110,9 +1110,9 @@ impl<S> CameraAttitude<S> where S: ScalarFloat {
         self.axis = q_roll * self.axis;
 
         let rotation_matrix_inv = Matrix4x4::from(&self.axis);
-        self.forward = rotation_matrix_inv * self.forward_axis_eye().expand(S::zero());
-        self.right   = rotation_matrix_inv * self.right_axis_eye().expand(S::zero());
-        self.up      = rotation_matrix_inv * self.up_axis_eye().expand(S::zero());
+        self.forward = rotation_matrix_inv * self.forward_axis_eye().extend(S::zero());
+        self.right   = rotation_matrix_inv * self.right_axis_eye().extend(S::zero());
+        self.up      = rotation_matrix_inv * self.up_axis_eye().extend(S::zero());
         self.rotation_matrix = rotation_matrix_inv.inverse().unwrap();
     }
 
